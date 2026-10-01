@@ -1,0 +1,57 @@
+rules_version = '2';
+// Reglas de seguridad de Cloud Firestore para Horas Sindicales.
+// Pegar en: Consola Firebase → Firestore Database → Reglas → Publicar.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Correos de administrador (mantener igual que ADMIN_EMAILS en firebase-config.js)
+    function adminEmails() { return ['charly.lopez@gmail.com']; }
+
+    function signedIn() { return request.auth != null; }
+    function isAdminEmail() { return signedIn() && request.auth.token.email.lower() in adminEmails(); }
+    function myProfile() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function hasProfile() { return exists(/databases/$(database)/documents/users/$(request.auth.uid)); }
+    function isActive() { return signedIn() && hasProfile() && myProfile().active == true; }
+    function isAdmin() { return isAdminEmail() || (isActive() && myProfile().role == 'admin'); }
+    function canUse() { return isActive() || isAdmin(); }
+
+    function validEntry(d) {
+      return d.workerId is string
+        && d.date is string && d.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d.month is string && d.month.matches('^[0-9]{4}-[0-9]{2}$')
+        && d.start is string && d.end is string
+        && d.hours is number && d.hours > 0 && d.hours <= 24
+        && d.sources is list && d.sources.size() > 0 && d.sources.size() <= 12;
+    }
+
+    // Perfiles de usuario de la app
+    match /users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.email == request.auth.token.email
+        && ((request.resource.data.role == 'user' && request.resource.data.active == false) || isAdminEmail());
+      allow update: if isAdmin()
+        || (request.auth.uid == uid && isActive()
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']));
+      allow delete: if isAdmin();
+    }
+
+    // Miembros del comité
+    match /workers/{id} {
+      allow read: if canUse();
+      allow write: if isAdmin();
+    }
+
+    // Anotaciones de horas
+    match /entries/{id} {
+      allow read: if canUse();
+      allow create: if canUse()
+        && request.resource.data.createdBy == request.auth.uid
+        && validEntry(request.resource.data);
+      allow update: if canUse()
+        && request.resource.data.createdBy == resource.data.createdBy
+        && validEntry(request.resource.data);
+      allow delete: if isAdmin() || (isActive() && resource.data.createdBy == request.auth.uid);
+    }
+  }
+}

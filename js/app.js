@@ -178,17 +178,23 @@ async function onAuthChange(user) {
   S.authView = "login";
   S.tab = "resumen";
   $("#app").innerHTML = `<div class="empty">Cargando…</div>`;
-  try { await S.backend.ensureProfile(user, pendingName); } catch (e) { console.error(e); }
+  let profErr = null;
+  try {
+    await Promise.race([
+      S.backend.ensureProfile(user, pendingName),
+      new Promise((_, rej) => setTimeout(() => rej({ message: "La base de datos no responde (tiempo agotado). Revisa la conexión o si la red bloquea Firebase." }), 20000))
+    ]);
+  } catch (e) { console.error(e); profErr = e; }
   pendingName = null;
   S.subs.push(S.backend.onMyProfile(user.uid, p => {
     const wasAdmin = isAdmin();
     S.profile = p;
-    if (!p) { $("#app").innerHTML = `<div class="empty">Preparando cuenta…</div>`; return; }
+    if (!p) { showFatal(profErr ? `No se pudo crear tu perfil: ${errMsg(profErr)}${profErr.code ? " [" + profErr.code + "]" : ""}` : "Preparando cuenta…"); return; }
     if (!p.active) { renderPending(); return; }
     if (!S.dataStarted) startData();
     else if (wasAdmin !== isAdmin()) { startUsersSub(); render(); }
     else render();
-  }, e => console.error(e)));
+  }, e => { console.error(e); showFatal(`No se pudo leer tu perfil: ${errMsg(e)} [${e.code || "?"}]`); }));
 }
 
 function startData() {
@@ -266,6 +272,16 @@ async function onAuthSubmit(ev) {
     pendingName = null;
     renderAuth({ cls: "err", text: errMsg(e) });
   }
+}
+
+function showFatal(text) {
+  $("#app").innerHTML = `
+  <div class="pending-wrap panel">
+    <h2>No se puede continuar</h2>
+    <p class="muted">${esc(text)}</p>
+    <p class="muted small">Sesión: ${esc(S.user?.email || "")}</p>
+    <button class="btn" data-action="logout">Cerrar sesión</button>
+  </div>`;
 }
 
 function renderPending() {

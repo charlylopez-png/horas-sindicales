@@ -479,7 +479,7 @@ function viewAnotaciones() {
   const list = filteredEntries();
   const total = list.reduce((a, e) => a + e.hours, 0);
   const rows = list.map(e => {
-    const canDel = isAdmin() || e.createdBy === S.user.uid;
+    const canDel = true; // cualquier usuario activo puede borrar
     return `<tr>
       <td>${fmtDate(e.date)}</td>
       <td><span class="dot" style="background:${wColor(e.workerId)}"></span>${esc(wName(e.workerId))}</td>
@@ -735,7 +735,7 @@ function formIssues() {
 
 function renderModal() {
   const editing = !!F.id;
-  const canDel = editing && (isAdmin() || F.createdBy === S.user.uid);
+  const canDel = editing; // cualquier usuario activo puede borrar
   $("#modal-root").innerHTML = `
   <div class="modal-back" data-action="modal-back">
     <div class="modal" role="dialog" aria-modal="true">

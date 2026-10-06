@@ -26,7 +26,7 @@ avisos de límite e histórico anual.
 3. Recuperar contraseña: “¿Olvidaste la contraseña?” en la pantalla de acceso (Firebase envía el correo). Cambiarla: *Mi cuenta*.
 4. Los administradores pueden activar/bloquear, dar rol de admin y enviar correos de reseteo.
 
-Todos los usuarios activos ven todo y pueden anotar/editar; borrar solo quien anotó o un administrador.
+Todos los usuarios activos ven todo y pueden anotar, editar y borrar cualquier anotación.
 
 ## Puesta en marcha
 

@@ -51,7 +51,7 @@ service cloud.firestore {
       allow update: if canUse()
         && request.resource.data.createdBy == resource.data.createdBy
         && validEntry(request.resource.data);
-      allow delete: if isAdmin() || (isActive() && resource.data.createdBy == request.auth.uid);
+      allow delete: if canUse();
     }
   }
 }
